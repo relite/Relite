@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
@@ -11,65 +11,41 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see http://www.gnu.org/licenses/agpl.html.
- * 
+ *
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
 package relite
 
-import ppl.dsl.optiml.{ OptiMLApplication, OptiMLApplicationRunner }
-
 import ppl.delite.framework.DeliteApplication
 import ppl.delite.framework.Config
-
-import ppl.dsl.optiml.{ OptiMLCodeGenScala, OptiMLCodeGenCuda, OptiMLExp }
 import ppl.delite.framework.codegen.delite.{ DeliteCodeGenPkg, TargetDelite }
 import ppl.delite.framework.codegen.{ Target }
 import ppl.delite.framework.codegen.scala.{ TargetScala }
 import ppl.delite.framework.codegen.cuda.{ TargetCuda }
 import scala.virtualization.lms.internal.{ GenericFatCodegen }
-
-import scala.virtualization.lms.common._
+import scala.virtualization.lms.common.{ SynchronizedArrayBufferOps, SynchronizedArrayBufferOpsExp }
 import scala.collection.mutable
 import scala.collection.mutable.{ ArrayBuffer, SynchronizedBuffer }
+import ppl.tests.scalatest._
 
 import java.io.{ Console => _, _ }
 import java.io.{ File, FileSystem }
+import optiml.compiler.OptiMLApplicationCompiler
+import optiml.compiler.ops._
+import optiml.shared.ops._
 
-class MainDeliteRunner extends DeliteTestRunner with OptiMLApplicationRunner /*with VariablesExpOpt*/ { self =>
+class MainDeliteRunner extends DeliteTestRunner with OptiMLApplicationCompiler {
 
   var program: Rep[Int] => Rep[Any] = { x => x } // crashes if we refer to myprog directly!! GRRR ...
+
   override def main(): Unit = {
-    //val (arg,block) = reify0[Int,Int](program)
-    // discard arg; hacked it to be a const ...
-    //reflect[Unit](block) // ok??
     program(0)
   }
-
-  /*
-  // mix in delite and lancet generators
-  val scalaGen = new ScalaCodegen { val IR: self.type = self }//; Console.println("SCG"); allClass(this.getClass) }
-  override def createCodegen() = new ScalaCodegen { val IR: self.type = self }
-  override def getCodeGenPkg(t: Target{val IR: self.type}) : 
-    GenericFatCodegen{val IR: self.type} = t match {
-      case _:TargetScala => createCodegen()
-      case _:TargetCuda => new CudaCodegen { val IR: self.type = self }
-      case _ => super.getCodeGenPkg(t)
-    }
-  override lazy val deliteGenerator = new DeliteCodegen { 
-    val IR : self.type = self;
-    val generators = self.generators; 
-    //Console.println("DCG")
-    //allClass(this.getClass)
-  }
-  
-
-  def remap[A](x: TypeRep[A]): String = scalaGen.remap(x.manif)
-*/
 }
 
 // *** from delite test runner. call compileAndTest to run an app
@@ -87,6 +63,7 @@ object DeliteRunner {
   var verbose = props.getProperty("tests.verbose", "false").toBoolean
   var verboseDefs = props.getProperty("tests.verboseDefs", "false").toBoolean
   var threads = props.getProperty("tests.threads", "1")
+  val debug = props.getProperty("delite.debug", "false")
   var cacheSyms = false /* NNOOOOOOOOOO!!!!!!!!!!!*/ //props.getProperty("tests.cacheSyms", "true").toBoolean
   var javaHome = new File(props.getProperty("java.home", ""))
   var scalaHome = new File(props.getProperty("scala.vanilla.home", ""))
@@ -133,6 +110,7 @@ object DeliteRunner {
       Config.degFilename = degName
       Config.buildDir = generatedDir
       Config.cacheSyms = cacheSyms
+      Config.debug = debug.toBoolean
       //Config.generateCUDA = true
       val screenOrVoid = if (verbose) System.out else new PrintStream(new ByteArrayOutputStream())
       Console.withOut(screenOrVoid) {
@@ -146,7 +124,7 @@ object DeliteRunner {
         //assert(!app.hadErrors) //TR should enable this check at some time ...
       }
     } finally {
-      // concurrent access check 
+      // concurrent access check
       assert(Config.buildDir == generatedDir)
       Config.degFilename = save
       Config.buildDir = buildDir
@@ -196,24 +174,18 @@ object DeliteRunner {
 
 class TestFailedException(s: String, i: Int) extends Exception(s)
 
-trait DeliteTestRunner extends DeliteTestModule with DeliteApplication
-    with MiscOpsExp with SynchronizedArrayBufferOpsExp with StringOpsExp {
+trait DeliteTestRunner extends DeliteApplication with DeliteTestConfig with DeliteTestOpsExp {
+  self: optiml.compiler.OptiMLApplicationCompiler =>
 
   var resultBuffer: ArrayBuffer[Boolean] = _
 
   def collector: Rep[ArrayBuffer[Boolean]] = staticData(resultBuffer)
-}
-
-trait DeliteTestModule extends Object
-    with MiscOps with SynchronizedArrayBufferOps with StringOps {
 
   def main(): Unit
 
-  def collector: Rep[ArrayBuffer[Boolean]]
-
-  def collect(s: Rep[Boolean]) { collector += s; println(s) }
+  def collect(s: Rep[Boolean]) { delite_test_append(collector, s); println(s) }
 
   def mkReport(): Rep[Unit] = {
-    println(unit(DeliteRunner.MAGICDELIMETER) + (collector mkString unit(",")) + unit(DeliteRunner.MAGICDELIMETER))
+    // println(unit(DeliteRunner.MAGICDELIMETER) + (collector mkString unit(",")) + unit(DeliteRunner.MAGICDELIMETER))
   }
 }
