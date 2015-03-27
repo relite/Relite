@@ -211,22 +211,34 @@ moment. Most of it is contained in the ~200 lines
 If You Want to Try it Out
 -------------------------
 
-1. Get [FastR](https://github.com/allr/fastr) (install and build in a subdir called `fastr`; latest commit tested: 41183615b2dead89f47afd69c31ff2e6e84fc21e):
-
-        (git clone https://github.com/allr/fastr; cd fastr; ant)
-
-2. Install dependencies: LMS-Core and Delite
-    - [LMS-Core](http://github.com/tiarkrompf/virtualization-lms-core): 
-      branch `delite-develop` (latest commit tested: b80693ddb6408c47116666f5253b777c48966509). 
-      Run `sbt publish-local` inside your local clone dir.
-    - [Delite](http://github.com/stanford-ppl/delite): 
-      branch `wip-clusters-lancet` (latest commit tested: 32f6c245c15abe676f2251b895489b3aee2aad68).
-      Run `sbt publish-local` and `sbt delite-test/publish-local` inside your local clone dir. There might
-      be compile errors but that is OK.
-    - Create a `delite.properties` file in your local checkout 
+1. Install dependencies
+      - Get [hyperdsl](https://github.com/stanford-ppl/hyperdsl):
+            `git clone https://github.com/stanford-ppl/hyperdsl`
+      - Get LMS-Core, Delite and Forge from hyperdsl:
+            `cd hyperdsl`
+            `git submodule update --init`
+            `sbt compile`
+            *Note: set the following variables: `HYPER_HOME`, `LMS_HOME`, `DELITE_HOME`, `FORGE_HOME`, `JAVA_HOME`
+      - Publish LMS:
+            `cd virtualization-lms-core` (from hyperdsl)
+            `sbt publish-local`
+      - Publish Delite:
+            `cd delite` (from hyperdsl)
+            `sbt publish-local`
+            `sbt delite-test/publish-local`
+      - Generate and publish OptiML from Forge:
+            `forge/bin/update ppl.dsl.forge.dsls.optiml.OptiMLDSLRunner OptiML`
+            `cd published/OptiML (from hyperdsl)`
+            `sbt publish-local` (configure `OptiML/project/Build.scala`)
+2. Clone this repository
+3. Get [FastR](https://github.com/allr/fastr) (install and build in a subdir under Relite called `fastr`; latest commit tested: 41183615b2dead89f47afd69c31ff2e6e84fc21e):
+      - `git clone https://github.com/allr/fastr` 
+      - `git checkout 41183615b2dead89f47afd69c31ff2e6e84fc21e`
+      - `cd fastr` 
+      - `ant`
+4. Create a `delite.properties` file in your local checkout 
       (contents as described [here](http://github.com/stanford-ppl/delite)).
-
-3. Use `sbt test` and `sbt test:run` to run tests.
+5. Use `sbt test` and `sbt test:run` to run tests.
 
 ### License
 
