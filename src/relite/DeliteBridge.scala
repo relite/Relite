@@ -34,17 +34,18 @@ import org.antlr.runtime._
 import java.io._
 
 import scala.collection.JavaConversions._
-
-import ppl.dsl.optiml.{ OptiMLApplication, OptiMLCodeGenScala }
+import optiml.shared.{ OptiMLApplication }
 import ppl.delite.framework.transform._
 import scala.virtualization.lms.common.StaticData
 import ppl.delite.framework.datastructures.DeliteArray
+import optiml.compiler.ops._
+import ppl.delite.framework.datastructures._
+import optiml.compiler.OptiMLApplicationCompiler
+import scala.collection.mutable
 
-import scala.collection.mutable._
-
-trait Eval extends OptiMLApplication with StaticData {
-  type Env = Map[RSymbol, Rep[Any]]
-  var env: Env = Map.empty
+trait Eval extends OptiMLApplicationCompiler with StaticData {
+  type Env = mutable.Map[RSymbol, Rep[Any]]
+  var env: Env = mutable.Map.empty
 
   //storing declared functions
   type EnvFunct = Map[RSymbol, Function]
@@ -63,10 +64,10 @@ trait Eval extends OptiMLApplication with StaticData {
     case v: ScalarDoubleImpl => unit(v.getDouble(0))
     case v: IntImpl =>
       val data = staticData(v.getContent).as[DeliteArray[Int]]
-      densevector_obj_fromarray(data, true)
+      densevector_fromarray(data, true)
     case v: DoubleImpl =>
       val data = staticData(v.getContent).as[DeliteArray[Double]]
-      densevector_obj_fromarray(data, true)
+      densevector_fromarray(data, true)
     //representing boolean
     case v: RLogical =>
       val intLogicalVal = v.getLogical(0)
@@ -105,7 +106,7 @@ trait Eval extends OptiMLApplication with StaticData {
   implicit class Cast(x: Rep[Any]) { def as[T]: Rep[T] = x.asInstanceOf[Rep[T]] }
 
   def eval(e: ASTNode, frame: Frame): Rep[Any] = e match {
-    case e: Constant => liftValue(e.getValue)
+    case e: r.nodes.Constant => liftValue(e.getValue())
     case e: SimpleAssignVariable =>
       val lhs = e.getSymbol
       val rhs = e.getExpr
@@ -218,16 +219,18 @@ trait Eval extends OptiMLApplication with StaticData {
           (v1 - v2).as[DenseVector[Double]]
       }
 
-    case e: Colon =>
-      val lhs = eval(e.getLHS, frame)
+    /* case e: Colon =>
+      val lhs: Rep[Any] = eval(e.getLHS, frame)
       val rhs = eval(e.getRHS, frame)
       val D = manifest[Double]
       val VD = manifest[DenseVector[Double]]
       (lhs.tpe, rhs.tpe) match {
         case (D, D) =>
-          indexvector_range((lhs.as[Double]).toInt, (rhs.as[Double]).toInt + 1).toDouble
+          DenseVector.range(
+            lhs.as[Double].toInt,
+            rhs.as[Double].toInt + 1).toDouble
       }
-
+*/
     case e: FunctionCall =>
       e.getName.toString match {
         case "map" | "sapply" =>
@@ -241,10 +244,10 @@ trait Eval extends OptiMLApplication with StaticData {
         //Vector creation
         case "c" =>
           val first = eval(e.getArgs.getNode(0), frame)
-          val sizeVect = e.getArgs.size()
+          val sizeVect: Int = e.getArgs.size()
           val v1 = DenseVector[Double](e.getArgs.size(), true)
 
-          for (i <- (0 to sizeVect-1)) {
+          for ((i: Int) <- (0 to (sizeVect - 1))) {
             v1(i) = (eval(e.getArgs.getNode(i), frame)).as[Double]
           }
           v1
@@ -305,9 +308,9 @@ trait Eval extends OptiMLApplication with StaticData {
 
         //function cat
         case "cat" =>
-          val args = e.getArgs.map(g => eval(g.getValue, frame)).toList
+          val args: List[Any] = e.getArgs.map(g => eval(g.getValue, frame)).toList
           for (arg <- args) {
-            print(arg + " ")
+            ???
           }
 
         //function diag
@@ -398,7 +401,7 @@ trait Eval extends OptiMLApplication with StaticData {
           val name: String = e.getArgs.getNode(0).toString //name of the value, we are searching for, string
           val keys = env.keySet
           var isPresent: Rep[Boolean] = unit(false)
-          for (k <- keys) {
+          for ((k: RSymbol) <- keys) {
             if (k.name.toString.equals(name)) isPresent = unit(true)
           }
           isPresent
@@ -471,11 +474,11 @@ trait Eval extends OptiMLApplication with StaticData {
         case "mean" =>
           val v = (eval(e.getArgs.getNode(0), frame)).as[DenseVector[Double]]
           (sum(v) / v.length).as[Double]
-          
+
         case "print" =>
           val arg = e.getArgs
           val VD = manifest[DenseVector[Double]]
-          for (i <- (0 to arg.size-1)) {
+          for ((i: Int) <- (0 to arg.size - 1)) {
             val a = eval(arg.getNode(i), frame)
             a.tpe match {
               case VD => (a.as[DenseVector[Double]]).pprint
@@ -499,11 +502,11 @@ trait Eval extends OptiMLApplication with StaticData {
             val expectedNrArgs = signature.size
             if (realNrArgs == expectedNrArgs) {
               val argNames = signature.map(g => g.getName).toList
-              for (i <- (0 to realNrArgs-1)) {
+              for ((i: Int) <- (0 to realNrArgs - 1)) {
                 env = env.updated(argNames(i), eval(arguments.getNode(i), frame))
               }
               val result = eval(functionNode.getBody, frame)
-              globalEnv.foreach(pair => currentEnv.update(pair._1, pair._2))
+              globalEnv.foreach((pair: Tuple2[RSymbol, Rep[Any]]) => currentEnv.update(pair._1, pair._2))
               env = currentEnv
               globalEnv = scala.collection.immutable.Map.empty
 
@@ -529,7 +532,7 @@ trait Eval extends OptiMLApplication with StaticData {
             (e.getName.toString, args) match {
               case ("Vector.rand", (n: Rep[Double]) :: Nil) =>
                 assert(n.tpe == manifest[Double])
-                Vector.rand(n.toInt)
+                DenseVector.rand(n.toInt)
               case s => println("unknown f: " + s + " / " + args.mkString(","));
             }
           }
@@ -681,12 +684,12 @@ trait Eval extends OptiMLApplication with StaticData {
 
     //for loop
     case e: For =>
-      val body = e.getBody //type: ASTNode
+      val body: ASTNode = e.getBody
       val envBeforeLoop = env.clone
-      val counter = e.getCVar //type:RSymbol
-      val range: Rep[DenseVector[Double]] = (eval(e.getRange, frame)).as[DenseVector[Double]] //type:ASTNode
+      val counter: RSymbol = e.getCVar
+      val range: Rep[DenseVector[Double]] = (eval((e.getRange: ASTNode), frame)).as[DenseVector[Double]]
       val bodyEvaluated: Rep[Any] = unit(())
-      for (currVal <- range) {
+      range.foreach { (currVal: Rep[Double]) =>
         env = env.updated(counter, currVal)
         bodyEvaluated = eval(body, frame)
       }
@@ -737,14 +740,15 @@ trait Eval extends OptiMLApplication with StaticData {
 }
 
 class EvalRunner extends MainDeliteRunner with Eval { self =>
-  //case class Lam[A,B](f: Rep[A]=>Rep[B]) extends Def[A=>B]
-  //override def fun[A:Manifest,B:Manifest](f: Rep[A]=>Rep[B]):Rep[A=>B] = Lam(f)
+
   def nuf[A, B](f: Rep[A => B]): Rep[A] => Rep[B] = f match { case Def(Lambda(f, _, _)) => f }
 
   def infix_tpe[T](x: Rep[T]): Manifest[_] = x.tp
 
-  val transport = new Array[Any](1)
-  def setResult(x: Rep[Any]) = staticData(transport).update(0, x)
+  val transport: Array[Any] = new Array[Any](1)
+  def setResult(x: Rep[Any]): Rep[Any] =
+    darray_update(staticData(transport).as[ForgeArray[Any]], 0, x)
+
   def getResult: AnyRef = convertBack(transport(0))
 }
 
@@ -763,7 +767,6 @@ object DeliteBridge {
         check(call, names, exprs)
         val expr = exprs(0)
         val ast = expr.getAST()
-
         val ast1: AnyRef = ast // apparently ASTNode member fields are reassigned -- don't make it look like one!
         new BaseR(call) {
           def execute(frame: Frame): AnyRef = {
@@ -807,4 +810,3 @@ object DeliteBridge {
     Primitives.add(cf)
   }
 }
-
