@@ -219,18 +219,19 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
           (v1 - v2).as[DenseVector[Double]]
       }
 
-    /* case e: Colon =>
+    case e: Colon =>
       val lhs: Rep[Any] = eval(e.getLHS, frame)
       val rhs = eval(e.getRHS, frame)
       val D = manifest[Double]
       val VD = manifest[DenseVector[Double]]
       (lhs.tpe, rhs.tpe) match {
         case (D, D) =>
-          DenseVector.range(
+          DenseVector.uniform(
             lhs.as[Double].toInt,
-            rhs.as[Double].toInt + 1).toDouble
+            1,
+            rhs.as[Double].toInt + 1)
       }
-*/
+
     case e: FunctionCall =>
       e.getName.toString match {
         case "map" | "sapply" =>
@@ -310,7 +311,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
         case "cat" =>
           val args: List[Any] = e.getArgs.map(g => eval(g.getValue, frame)).toList
           for (arg <- args) {
-            ???
+            print(arg.toString + " ")
           }
 
         //function diag
@@ -512,6 +513,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
 
               val VD = manifest[DenseVector[Double]]
               val D = manifest[Double]
+              val I = manifest[Int]
 
               (result.tpe) match {
                 case VD =>
@@ -520,6 +522,9 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
                 case D =>
                   println("Function return type - Rep[Double]") //TODO: remove this
                   result.as[Double]
+                case I =>
+                  println("Function return type - Rep[Int]") //TODO: remove this
+                  result.as[Int]
                 case _ => //TODO: expand for other cases, for now, double is enough
                   println("Function return type - Something else") //TODO: remove this
                   result
@@ -659,9 +664,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
       val rhs = (eval(e.getRHS, frame)).as[Double]
       val accessVector = e.getVector
       val vect = (eval(accessVector.getVector, frame)).as[DenseVector[Double]]
-      val arg = (eval(accessVector.getArgs.getNode(0), frame)).as[Int]
-      val index = (arg.toInt - 1).toInt
-
+      val arg = eval(accessVector.getArgs.getNode(0), frame)
+      val index = (arg.as[Double] - 1).toInt
       val invertEnv = env.map(_.swap)
       val theKey: RSymbol = invertEnv(vect)
 
