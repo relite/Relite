@@ -35,7 +35,7 @@ import java.io._
 
 import scala.collection.JavaConversions._
 
-object FirstExample {
+object NBody {
 
   def main(args: Array[String]): Unit = {
 
@@ -167,53 +167,6 @@ nbody(1)
 
     })
     """)
-    /*
-
-advance <- function(dt) {
-    dxx <- outer(body_x, body_x, "-") # ~2x faster then nested for loops
-    dyy <- outer(body_y, body_y, "-")
-    dzz <- outer(body_z, body_z, "-")
-    distance <- sqrt(dxx * dxx + dyy * dyy + dzz * dzz)
-    mag <- dt / (distance * distance * distance) # ~fast as distance^3
-    diag(mag) <- 0
-    body_vx <<- body_vx - as.vector((dxx * mag) %*% body_mass)
-    body_vy <<- body_vy - as.vector((dyy * mag) %*% body_mass)
-    body_vz <<- body_vz - as.vector((dzz * mag) %*% body_mass)
-    body_x <<- body_x + dt * body_vx
-    body_y <<- body_y + dt * body_vy
-    body_z <<- body_z + dt * body_vz
-}
-
-energy <- function() {
-    dxx <- outer(body_x, body_x, "-")
-    dyy <- outer(body_y, body_y, "-")
-    dzz <- outer(body_z, body_z, "-")
-    distance <- sqrt(dxx * dxx + dyy * dyy + dzz * dzz)
-    q <- (body_mass %o% body_mass) / distance
-     return(sum(0.5 * body_mass *
-               (body_vx * body_vx + body_vy * body_vy + body_vz * body_vz)) -
-           sum(q[upper.tri(q)]))
-}
-
-nbody <- function(args) {
-    n = if (length(args)) as.integer(args[[1]]) else 1000L
-    options(digits=9)
-    offset_momentum()
-    cat(energy(), "\n")
-    for (i in 1:n){
-        advance(0.01)
-        print(body_x)
-     #   print(body_y)
-     #   print(body_z)
-     #   print(body_vx)
-     #   print(body_vy)
-     #   print(body_vz)
-    }
-    cat(energy(), "\n")
-}
-
-nbody(1)
-*/
 
   }
 }
