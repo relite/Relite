@@ -21,5 +21,5 @@
  */
 package generated.scala
 
-case class DenseVectorDouble(var _data: Array[Double], var _length: Int, var _isRow: Boolean) {
+case class DenseVectorDouble(var _length: Int, var _isRow: Boolean, var _data: Array[Double]) {
 }
