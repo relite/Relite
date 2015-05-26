@@ -21,8 +21,7 @@ libraryDependencies += "stanford-ppl" %% "runtime" % "0.1-SNAPSHOT"
 
 libraryDependencies += "stanford-ppl" %% "delite-test" % "0.1-SNAPSHOT"
 
-libraryDependencies +=
- "stanford-ppl" %% "optiml" % "0.1-SNAPSHOT"
+libraryDependencies += "stanford-ppl" %% "optiml" % "0.1-SNAPSHOT"
 
 libraryDependencies += "com.google.protobuf" % "protobuf-java" % "2.4.1"
 

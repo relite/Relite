@@ -35,7 +35,7 @@ import java.io._
 
 import scala.collection.JavaConversions._
 
-object FirstExample {
+object NBody {
 
   def main(args: Array[String]): Unit = {
 
@@ -119,8 +119,6 @@ offset_momentum <- function() {
     body_vz[[1]] <<- -sum(body_vz * body_mass) / solar_mass
 }
 
-
-
 advance <- function(dt) {
     dxx <- outer(body_x, body_x, "-") # ~2x faster then nested for loops
     dyy <- outer(body_y, body_y, "-")
@@ -147,9 +145,10 @@ energy <- function() {
            sum(q[upper.tri(q)]))
 }
 
+
 nbody <- function(args) {
     n = if (length(args)) as.integer(args[[1]]) else 1000L
-    options(digits=9)
+    # options(digits=9)
     offset_momentum()
     cat(energy(), "\n")
     for (i in 1:n){
