@@ -40,7 +40,7 @@ import scala.virtualization.lms.common.StaticData
 import ppl.delite.framework.datastructures.DeliteArray
 import optiml.compiler.ops._
 import ppl.delite.framework.datastructures._
-import optiml.compiler.OptiMLApplicationCompiler
+import optiml.compiler.OptiMLApplicationCompiler //DenseVector
 import scala.collection.mutable
 
 trait Eval extends OptiMLApplicationCompiler with StaticData {
@@ -116,6 +116,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
         case _ =>
           val rhss = eval(rhs, frame)
           env = env.updated(lhs, rhss)
+          if (e.isSuper())
+            globalEnv = globalEnv.updated(lhs, rhss)
       }
     case e: SimpleAccessVariable =>
       val lhs = e.getSymbol
@@ -173,7 +175,11 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             i += 1
           }
           res
-        case (D, VD) => rhs.as[DenseVector[Double]] * lhs.as[Double]
+        case (D, VD) =>
+          val v = rhs.as[DenseVector[Double]]
+          val num = lhs.as[Double]
+          val res = v * num
+          res
       }
 
     case e: Div =>
@@ -553,6 +559,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
           val first = firstVect.as[DenseVector[Double]]
           val second = secondVect.as[DenseVector[Double]]
           val res = first ** second
+          println("DIMENZIJE " + first.length() + " " + second.length())
           res.as[DenseMatrix[Double]]
       }
 
@@ -668,7 +675,6 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
       val index = (arg.as[Double] - 1).toInt
       val invertEnv = env.map(_.swap)
       val theKey: RSymbol = invertEnv(vect)
-
       val vectMut = DenseVector[Double](vect.length, true)
       var i = 0
       while (i < index) {
@@ -681,9 +687,10 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
         vectMut(i) = vect(i)
         i += 1
       }
-      if (e.isSuper())
+      if (e.isSuper()) {
+        env = env.updated(theKey, vectMut.Clone)
         globalEnv = globalEnv.updated(theKey, vectMut)
-      else
+      } else
         env = env.updated(theKey, vectMut.Clone)
 
     //for loop
