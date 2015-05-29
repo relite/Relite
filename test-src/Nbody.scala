@@ -141,24 +141,24 @@ energy <- function() {
     distance <- sqrt(dxx * dxx + dyy * dyy + dzz * dzz)
     q <- (body_mass %o% body_mass) / distance
      return(sum(0.5 * body_mass *
-               (body_vx * body_vx + body_vy * body_vy + body_vz * body_vz)) -
+              (body_vx * body_vx + body_vy * body_vy + body_vz * body_vz)) -
            sum(q[upper.tri(q)]))
 }
 
 
 nbody <- function(args) {
     n = if (length(args)) as.integer(args[[1]]) else 1000L
-    # options(digits=9)
+  #  options(digits=9)
     offset_momentum()
     cat(energy(), "\n")
     for (i in 1:n){
         advance(0.01)
         print(body_x)
-     #   print(body_y)
-     #   print(body_z)
-     #   print(body_vx)
-     #   print(body_vy)
-     #   print(body_vz)
+        print(body_y)
+        print(body_z)
+        print(body_vx)
+        print(body_vy)
+        print(body_vz)
     }
     cat(energy(), "\n")
 }
