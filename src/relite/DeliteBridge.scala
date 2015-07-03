@@ -43,6 +43,7 @@ import ppl.delite.framework.datastructures._
 import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
 import generated.scala.container._
+import generated.scala.container._
 
 trait Eval extends OptiMLApplicationCompiler with StaticData {
   type Env = mutable.Map[RSymbol, Rep[Any]]
@@ -53,6 +54,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
   var envFunctions: EnvFunct = Map.empty
 
   var globalEnv: scala.collection.immutable.Map[RSymbol, Rep[Any]] = scala.collection.immutable.Map.empty
+
+  val isGlobalEnv = true
 
   def infix_tpe[T](x: Rep[T]): Manifest[_]
 
@@ -280,6 +283,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             val v2 = rhs.as[DenseVector[Double]]
             (v1 - v2).as[DenseVector[Double]]
         }
+<<<<<<< HEAD
 
       case e: Colon =>
         val lhs: Rep[Any] = eval(e.getLHS, frame)
@@ -294,6 +298,22 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
               rhs.as[Double].toInt + 1)
         }
 
+=======
+
+      case e: Colon =>
+        val lhs: Rep[Any] = eval(e.getLHS, frame)
+        val rhs = eval(e.getRHS, frame)
+        val D = manifest[Double]
+        val VD = manifest[DenseVector[Double]]
+        (lhs.tpe, rhs.tpe) match {
+          case (D, D) =>
+            DenseVector.uniform(
+              lhs.as[Double].toInt,
+              1,
+              rhs.as[Double].toInt + 1)
+        }
+
+>>>>>>> 1872f9edc2c5d95553fc3f9a4db323a7b13aea49
       case e: FunctionCall =>
         e.getName.toString match {
           case "map" | "sapply" =>
@@ -569,10 +589,19 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
                 for ((i: Int) <- (0 to realNrArgs - 1)) {
                   env = env.updated(argNames(i), eval(arguments.getNode(i), frame))
                 }
+<<<<<<< HEAD
+
+                val result = eval(functionNode.getBody, frame)
+                globalEnv.foreach((pair: Tuple2[RSymbol, Rep[Any]]) => currentEnv.update(pair._1, pair._2))
+                env = currentEnv
+                if (!isGlobalEnv)
+                  globalEnv = scala.collection.immutable.Map.empty
+=======
                 val result = eval(functionNode.getBody, frame)
                 globalEnv.foreach((pair: Tuple2[RSymbol, Rep[Any]]) => currentEnv.update(pair._1, pair._2))
                 env = currentEnv
                 globalEnv = scala.collection.immutable.Map.empty
+>>>>>>> 1872f9edc2c5d95553fc3f9a4db323a7b13aea49
 
                 val VD = manifest[DenseVector[Double]]
                 val D = manifest[Double]
@@ -774,7 +803,11 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
       //for loop
       case e: For =>
         val body: ASTNode = e.getBody
+<<<<<<< HEAD
+        val currentEnvFor = env.clone
+=======
         val envBeforeLoop = env.clone
+>>>>>>> 1872f9edc2c5d95553fc3f9a4db323a7b13aea49
         val counter: RSymbol = e.getCVar
         val range: scala.collection.immutable.Range = evalColon(e.getRange, frame)
         val range1 = eval(e.getRange, frame)
@@ -782,6 +815,35 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
         for ((i: Int) <- range) {
           val a: Rep[Int] = (unit(i.toInt)).as[Int]
           env = env.updated(counter, a)
+<<<<<<< HEAD
+          isGlobalEnv = false
+          bodyEvaluated = eval(body, frame)
+        }
+        globalEnv.foreach((pair: Tuple2[RSymbol, Rep[Any]]) => currentEnvFor.update(pair._1, pair._2))
+        env = currentEnvFor
+        globalEnv = scala.collection.immutable.Map.empty
+
+        bodyEvaluated
+
+      //not node-just for single boolean, for now
+      case e: Not =>
+        val lhs = eval(e.getLHS, frame)
+        val B = manifest[Boolean]
+        lhs.tpe match {
+          case B => !lhs.as[Boolean]
+        }
+
+      //elementwise and - just for simple boolean values, not vectors, for now
+      case e: ElementwiseAnd =>
+        val lhs = eval(e.getLHS, frame)
+        val rhs = eval(e.getRHS, frame)
+        val B = manifest[Boolean]
+        (lhs.tpe, rhs.tpe) match {
+          case (B, B) =>
+            (lhs.as[Boolean] && rhs.as[Boolean]).as[Boolean]
+        }
+
+=======
           bodyEvaluated = eval(body, frame)
 
         }
@@ -806,6 +868,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             (lhs.as[Boolean] && rhs.as[Boolean]).as[Boolean]
         }
 
+>>>>>>> 1872f9edc2c5d95553fc3f9a4db323a7b13aea49
       //elementwise or - just for simple boolean values, not vectors, for now
       case e: ElementwiseOr =>
         val lhs = eval(e.getLHS, frame)
