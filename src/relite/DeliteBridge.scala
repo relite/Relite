@@ -42,7 +42,6 @@ import optiml.compiler.ops._
 import ppl.delite.framework.datastructures._
 import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
-
 import generated.scala.container._
 
 trait Eval extends OptiMLApplicationCompiler with StaticData {
