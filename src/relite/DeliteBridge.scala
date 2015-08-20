@@ -42,6 +42,7 @@ import optiml.compiler.ops._
 import ppl.delite.framework.datastructures._
 import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
+import generated.scala.container._
 
 import generated.scala.container._
 
@@ -552,6 +553,23 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
                 case _ => println(a)
               }
             }
+
+          case "matrix" =>
+            val args = e.getArgs
+            val vector = eval(args.getNode(0), frame).as[DenseVector[Double]]
+            val nrow = ((eval(args.getNode(1), frame).as[Double]).toInt).as[Int]
+            val ncol = ((eval(args.getNode(2), frame).as[Double]).toInt).as[Int]
+            val byRow: Rep[Boolean] = false
+            val matrix: Rep[DenseMatrix[Double]] = DenseMatrix[Double](nrow, ncol)
+            if (args.size() >= 4) {
+              byRow = eval(args.getNode(3), frame).as[Boolean]
+              if (byRow)
+                vector.indices.map(i => matrix(i / ncol, i % ncol) = vector(i))
+              else
+                vector.indices.map(i => matrix(i % nrow, i / nrow) = vector(i))
+            } else
+              vector.indices.map(i => matrix(i % nrow, i / nrow) = vector(i))
+            matrix
 
           //calls of defined functions
           //not working for arguments with default values yet
