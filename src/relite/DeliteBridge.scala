@@ -571,6 +571,81 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
               vector.indices.map(i => matrix(i % nrow, i / nrow) = vector(i))
             matrix
 
+          // kmeans R implementation
+          case "kmeans" =>
+            val args = e.getArgs
+            val x = eval(args.getNode(0), frame).as[DenseMatrix[Double]]
+            val centers = eval(args.getNode(1), frame).as[DenseMatrix[Double]] // todo: implement for number
+            val maxiter = eval(args.getNode(2), frame).as[Double].toInt
+            val n = x.numRows
+            val p = x.numCols
+            val k = centers.numRows
+            val cl = DenseVector[Int](n, true)
+            val nc = DenseVector[Int](k, true)
+            var updated = false
+            var again = true
+            var iter = 0
+
+            while (again == true) {
+              updated = false
+              again = false
+              for (i <- (0 until n): Rep[Range]) {
+                var best = 0.0
+                var inew = 0
+                for (c <- (0 until p): Rep[Range]) {
+                  var tmp = x(i, c) - centers(0, c)
+                  best = best + tmp * tmp
+                }
+                for (j <- (1 until k): Rep[Range]) {
+                  var dd = 0.0
+                  for (c <- (0 until p): Rep[Range]) {
+                    var tmp = x(i, c) - centers(j, c)
+                    dd = dd + tmp * tmp
+                  }
+                  if (dd < best) {
+                    best = dd
+                    inew = j
+                  }
+                }
+                if (cl(i) != inew) {
+                  updated = true
+                  cl.update(i, inew)
+                }
+              }
+
+              for (j <- (0 until k): Rep[Range]) {
+                for (c <- (0 until p): Rep[Range]) {
+                  centers.update(j, c, 0.0)
+                }
+              }
+              for (j <- (0 until k): Rep[Range]) {
+                nc.update(j, 0)
+              }
+              for (i <- (0 until n): Rep[Range]) {
+                var it = cl(i)
+                nc.update(it, nc(it) + 1)
+                for (c <- (0 until p): Rep[Range]) {
+                  centers.update(it, c, centers(it, c) + x(i, c))
+                }
+              }
+              for (j <- (0 until k): Rep[Range]) {
+                for (c <- (0 until p): Rep[Range]) {
+                  centers.update(j, c, centers(j, c) / nc(j))
+                }
+              }
+              if (updated == true) {
+                iter = iter + 1
+                if (iter < maxiter) {
+                  again = true
+                }
+              }
+
+            }
+            nc.pprint
+            cl.pprint
+            centers.pprint
+            centers
+
           //calls of defined functions
           //not working for arguments with default values yet
           case _ =>
