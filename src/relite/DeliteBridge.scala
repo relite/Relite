@@ -44,8 +44,6 @@ import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
 import generated.scala.container._
 
-import generated.scala.container._
-
 trait Eval extends OptiMLApplicationCompiler with StaticData {
   type Env = mutable.Map[RSymbol, Rep[Any]]
   var env: Env = mutable.Map.empty
@@ -130,6 +128,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
       }
     })
   }
+
+  // helper for kmeans
 
   //casting function
   implicit class Cast(x: Rep[Any]) { def as[T]: Rep[T] = x.asInstanceOf[Rep[T]] }
@@ -645,6 +645,48 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             cl.pprint
             centers.pprint
             centers
+
+          case "kmeans2" =>
+            val args = e.getArgs
+            val x = eval(args.getNode(0), frame).as[DenseMatrix[Double]]
+            val centers = eval(args.getNode(1), frame).as[DenseMatrix[Double]] // todo: implement for number
+            val maxiter = eval(args.getNode(2), frame).as[Double].toInt
+            val n = x.numRows
+            val p = x.numCols
+            val k = centers.numRows
+            var iter = 0
+            var converged = false
+            var again = true
+
+            while (again == true) {
+              again = false
+              val cl = DenseVector.uniform(0, 1, n).map { i => (centers.mapRowsToVector { row => dist(x.getRow(i.toInt), row, SQUARE) }).minIndex }
+              cl.pprint
+              val nc = DenseVector[Int](k, true)
+              DenseVector.uniform(0, 1, n).map { i => nc.update(cl(i.toInt), nc(cl(i.toInt)) + 1) }
+              nc.pprint
+              val cen = DenseMatrix[Double](k, p)
+              DenseVector.uniform(0, 1, n).map { i =>
+                val it = cl(i.toInt)
+                val elem = x.getRow(i.toInt).Clone
+                if (cen(it).length == 0) cen.update(it, elem)
+                else cen.update(it, cen(it) + elem)
+              }
+              cen.pprint
+              DenseVector.uniform(0, 1, k).map { i =>
+                val d = if (nc(i.toInt) == 0) 1 else nc(i.toInt)
+                cen.update(i.toInt, cen(i.toInt) / d)
+              }
+              cen.pprint
+              centers << cen
+              if (dist(centers, cen, SQUARE) < .0001) converged = true
+              if (converged == false) {
+                iter += 1
+                if (iter < maxiter) {
+                  again = true
+                }
+              }
+            }
 
           //calls of defined functions
           //not working for arguments with default values yet
