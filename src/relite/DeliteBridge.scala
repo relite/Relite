@@ -159,7 +159,73 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     }
 
   }
+  
+   def getTheMatrices2(e: MatMult, frame: Frame): Rep[DenseVector[DenseMatrix[Double]]] = {
+    var theMatrices: Rep[DenseVector[DenseMatrix[Double]]] = DenseVector(1, true)
+    val matr2 = eval(e.getRHS, frame)
+    val lh = e.getLHS
+    val VM = manifest[DenseMatrix[Double]]
+    val VD = manifest[DenseVector[Double]]
+    (matr2.tpe) match {
+      case (VM) =>
+        val m2 = matr2.as[DenseMatrix[Double]]
+        theMatrices(0) = m2
+        lh match {
+          case lh: MatMult =>
+            getTheMatrices2(lh, frame) << theMatrices
+          case lh: SimpleAccessVariable =>
+            val m1 = eval(lh, frame).as[DenseMatrix[Double]]
+            val v1 = DenseVector[DenseMatrix[Double]](1, true)
+            v1(0) = m1
+            v1 << theMatrices
+        }
+    }
+  }
 
+  def performMatrChainMult(matrices: Rep[DenseVector[DenseMatrix[Double]]]): Rep[DenseMatrix[Double]] = {
+    val l: Rep[Int] = matrices.length
+    val dims = DenseVector[Double](l + 1, true)
+    for (i <- (0 until l)) {
+      dims(i) = matrices(i).numRows
+    }
+    dims(l) = matrices(l - 1).numCols
+    val costMatrix = DenseMatrix[Double](l, l)
+    val splitTable = DenseMatrix[Int](l, l)
+    splitTable = splitTable.map(e => e - 1)
+    val mutableSplitTable = splitTable.mutable
+    val mutableCostMatrix = costMatrix.mutable
+    for (t <- (2 until l + 1): Rep[Range]) {
+      for (i <- (0 until l - t + 1): Rep[Range]) {
+        val j = i + t - 1
+        mutableCostMatrix.update(i, j, Double.MaxValue)
+        for (k <- (i until j)) {
+          val q = mutableCostMatrix(i, k) + mutableCostMatrix(k + 1, j) + dims(i) * dims(k + 1) * dims(j + 1)
+          if (q < mutableCostMatrix(i, j)) {
+            mutableCostMatrix.update(i, j, q)
+            mutableSplitTable.update(i, j, k)
+          }
+        }
+      }
+    }
+    //TODO: Delete this prints
+    println("Printing the split table")
+    mutableSplitTable.pprint
+    println("Pritning the cost matrix")
+    mutableCostMatrix.pprint
+
+    splitTable = mutableSplitTable.Clone
+
+    def multMatr(i: Rep[Int], j: Rep[Int]): Rep[DenseMatrix[Double]] = {
+      val k: Rep[Int] = splitTable(i, j)
+      if (i == j)
+        matrices(i)
+      else
+        //TODO: Debug this, parameter k causes StackOverflow
+        multMatr(i, k) * multMatr(k + 1, j)
+    }
+    multMatr(0, l - 1)
+  }
+  
   def eval(e: ASTNode, frame: Frame): Rep[Any] = {
     e match {
       case e: r.nodes.Constant => liftValue(e.getValue())
@@ -719,17 +785,32 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
 
       //matrix multiplication, just for double for now
       case e: MatMult =>
-        val matr1 = eval(e.getLHS, frame)
-        val matr2 = eval(e.getRHS, frame)
-        val VM = manifest[DenseMatrix[Double]]
-        val VD = manifest[DenseVector[Double]]
-        (matr1.tpe, matr2.tpe) match {
-          case (VM, VM) =>
-            (matr1.as[DenseMatrix[Double]] *:* matr2.as[DenseMatrix[Double]]).as[DenseMatrix[Double]]
-          case (VM, VD) =>
-            val vect = matr2.as[DenseVector[Double]]
-            val matr = matr1.as[DenseMatrix[Double]]
-            (matr.mapRowsToVector(row => sum(row * vect))).as[DenseMatrix[Double]]
+        val lh = e.getLHS
+        lh match {
+          case lh: MatMult =>
+            val theMatrices = getTheMatrices2(e, frame)
+            /*
+            println("The matrices are: ")
+            for (i <- (0 until theMatrices.length))
+              theMatrices(i).pprint
+          */
+            println("The chained result: ")
+            val chainedRes = performMatrChainMult(theMatrices)
+            chainedRes.pprint
+            chainedRes
+          case _ =>
+            val matr1 = eval(e.getLHS, frame)
+            val matr2 = eval(e.getRHS, frame)
+            val VM = manifest[DenseMatrix[Double]]
+            val VD = manifest[DenseVector[Double]]
+            (matr1.tpe, matr2.tpe) match {
+              case (VM, VM) =>
+                (matr1.as[DenseMatrix[Double]] * matr2.as[DenseMatrix[Double]]).as[DenseMatrix[Double]]
+              case (VM, VD) =>
+                val vect = matr2.as[DenseVector[Double]]
+                val matr = matr1.as[DenseMatrix[Double]]
+                (matr.mapRowsToVector(row => sum(row * vect))).as[DenseMatrix[Double]]
+            }
         }
 
       //just for single double for now
