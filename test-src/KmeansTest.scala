@@ -55,6 +55,8 @@ object KmeansTest {
         print(x)
         print(centers)
 
+        km <- kmeans(x, centers, 15)
+
         km <- kmeans2(x, centers, 15)
 
       })
