@@ -44,8 +44,6 @@ import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
 import generated.scala.container._
 
-import generated.scala.container._
-
 trait Eval extends OptiMLApplicationCompiler with StaticData {
   type Env = mutable.Map[RSymbol, Rep[Any]]
   var env: Env = mutable.Map.empty
@@ -131,6 +129,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     })
   }
 
+  // helper for kmeans
+
   //casting function
   implicit class Cast(x: Rep[Any]) { def as[T]: Rep[T] = x.asInstanceOf[Rep[T]] }
 
@@ -159,8 +159,8 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     }
 
   }
-  
-   def getTheMatrices2(e: MatMult, frame: Frame): Rep[DenseVector[DenseMatrix[Double]]] = {
+
+  def getTheMatrices2(e: MatMult, frame: Frame): Rep[DenseVector[DenseMatrix[Double]]] = {
     var theMatrices: Rep[DenseVector[DenseMatrix[Double]]] = DenseVector(1, true)
     val matr2 = eval(e.getRHS, frame)
     val lh = e.getLHS
@@ -225,7 +225,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     }
     multMatr(0, l - 1)
   }
-  
+
   def eval(e: ASTNode, frame: Frame): Rep[Any] = {
     e match {
       case e: r.nodes.Constant => liftValue(e.getValue())
@@ -652,6 +652,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             var again = true
             var iter = 0
 
+            //val profileTime = System.currentTimeMillis()
             while (again == true) {
               updated = false
               again = false
@@ -707,9 +708,61 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
               }
 
             }
+            //val now = System.currentTimeMillis()
+            //println("(elapsed time: " + (now - profileTime) / 1000D + "s)")
+
             nc.pprint
             cl.pprint
             centers.pprint
+            centers
+
+          // kmeans implementation
+          case "kmeans2" =>
+            val args = e.getArgs
+            val x = eval(args.getNode(0), frame).as[DenseMatrix[Double]]
+            val centers = eval(args.getNode(1), frame).as[DenseMatrix[Double]] // todo: implement for number
+            val maxiter = eval(args.getNode(2), frame).as[Double].toInt
+            val n = x.numRows
+            val p = x.numCols
+            val k = centers.numRows
+            //val cl = DenseVector[Int](n, true)
+            //val nc = DenseVector[Int](k, true)
+            var iter = 0
+            var converged = false
+            var again = true
+            //val profileTime = System.currentTimeMillis()
+            while (again == true) {
+              again = false
+              val cl = DenseVector.uniform(0, 1, n).map { i => (centers.mapRowsToVector { row => dist(x.getRow(i.toInt), row, SQUARE) }).minIndex }
+              val nc = DenseVector[Int](k, true)
+              DenseVector.uniform(0, 1, n).map { i => nc.update(cl(i.toInt), nc(cl(i.toInt)) + 1) }
+              val cen = DenseMatrix[Double](k, p)
+              DenseVector.uniform(0, 1, n).map { i =>
+                val it = cl(i.toInt)
+                val elem = x.getRow(i.toInt).Clone
+                if (cen(it).length == 0) cen.update(it, elem)
+                else cen.update(it, cen(it) + elem)
+              }
+              DenseVector.uniform(0, 1, k).map { i =>
+                val d = if (nc(i.toInt) == 0) 1 else nc(i.toInt)
+                cen.update(i.toInt, cen(i.toInt) / d)
+              }
+              if (dist(centers, cen, SQUARE) < .0001) converged = true
+              DenseVector.uniform(0, 1, k).map { i => centers.update(i.toInt, cen(i.toInt)) }
+              if (converged == false) {
+                iter += 1
+                if (iter < maxiter) {
+                  again = true
+                }
+              }
+              if (again == false) {
+                //val now = System.currentTimeMillis()
+                //println("(elapsed time: " + (now - profileTime) / 1000D + "s)")
+                nc.pprint
+                cl.pprint
+                centers.pprint
+              }
+            }
             centers
 
           //calls of defined functions
