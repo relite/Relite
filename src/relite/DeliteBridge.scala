@@ -214,14 +214,11 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     mutableCostMatrix.pprint
 
     splitTable = mutableSplitTable.Clone
-
-    def multMatr(i: Rep[Int], j: Rep[Int]): Rep[DenseMatrix[Double]] = {
+    
+    def multMatr: Rep[(Int, Int) => DenseMatrix[Int]] = fun { (i:Rep[Int], j:Rep[Int]) =>
       val k: Rep[Int] = splitTable(i, j)
-      if (i == j)
-        matrices(i)
-      else
-        //TODO: Debug this, parameter k causes StackOverflow
-        multMatr(i, k) * multMatr(k + 1, j)
+      if (i == j) matrices(i)
+      else multMatr(i, k) * multMatr(k + 1, j)
     }
     multMatr(0, l - 1)
   }
