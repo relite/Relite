@@ -25,9 +25,9 @@ import r._
 import r.data._
 import r.data.internal._
 import r.builtins.{ CallFactory, Primitives }
-import r.nodes._
-import r.nodes.truffle.{ BaseR, RNode }
-import com.oracle.truffle.api.frame._;
+import r.nodes.ast._
+import r.nodes.exec.{ BaseR, RNode }
+import r.runtime._;
 
 import org.antlr.runtime._
 

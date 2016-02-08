@@ -25,9 +25,9 @@ import r._
 import r.data._
 import r.data.internal._
 import r.builtins.{ CallFactory, Primitives }
-import r.nodes._
-import r.nodes.truffle.{ BaseR, RNode }
-import com.oracle.truffle.api.frame._;
+import r.nodes.ast._
+import r.nodes.exec.{ BaseR, RNode }
+import r.runtime._;
 
 import org.antlr.runtime._
 
@@ -44,7 +44,11 @@ import optiml.compiler.OptiMLApplicationCompiler
 import scala.collection.mutable
 import generated.scala.container._
 
-trait Eval extends OptiMLApplicationCompiler with StaticData {
+import scala.virtualization.lms.common.FunctionsRecursiveExp
+
+import scala.virtualization.lms.common.IfThenElse
+
+trait Eval extends OptiMLApplicationCompiler with StaticData with FunctionsRecursiveExp {
   type Env = mutable.Map[RSymbol, Rep[Any]]
   var env: Env = mutable.Map.empty
 
@@ -140,9 +144,9 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
         val lhs = e.getLHS
         val rhs = e.getRHS
         lhs match {
-          case l: r.nodes.Constant =>
+          case l: r.nodes.ast.Constant =>
             rhs match {
-              case r: r.nodes.Constant =>
+              case r: r.nodes.ast.Constant =>
                 val v1 = l.getValue()
                 val v2 = r.getValue()
                 v1 match {
@@ -214,18 +218,20 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
     mutableCostMatrix.pprint
 
     splitTable = mutableSplitTable.Clone
-    
-    def multMatr: Rep[(Int, Int) => DenseMatrix[Int]] = fun { (i:Rep[Int], j:Rep[Int]) =>
+    costMatrix
+    //TODO: Fix this
+    /*  def multMatr: Rep[(Int, Int) => DenseMatrix[Int]] = fun { (i: Rep[Int], j: Rep[Int]) =>
       val k: Rep[Int] = splitTable(i, j)
       if (i == j) matrices(i)
       else multMatr(i, k) * multMatr(k + 1, j)
     }
     multMatr(0, l - 1)
+  */
   }
 
   def eval(e: ASTNode, frame: Frame): Rep[Any] = {
     e match {
-      case e: r.nodes.Constant => liftValue(e.getValue())
+      case e: r.nodes.ast.Constant => liftValue(e.getValue())
       case e: SimpleAssignVariable =>
         val lhs = e.getSymbol
         val rhs = e.getExpr
@@ -987,7 +993,7 @@ trait Eval extends OptiMLApplicationCompiler with StaticData {
             (lhs.as[Double] < rhs.as[Double]).as[Boolean]
         }
 
-      case e: r.nodes.While =>
+      case e: r.nodes.ast.While =>
         val body: ASTNode = e.getBody
         val condNode: ASTNode = e.getCond
         var cond: Rep[Boolean] = eval(condNode, frame).as[Boolean]
